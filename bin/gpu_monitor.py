@@ -97,7 +97,7 @@ class GPUMonitor(object):
         return o
 
     def _find_val(self, output, word):
-        lines = output.split('\n')
+        lines = output.decode('utf-8').split('\n')
         for line in lines:
             tple = line.split(':')
             if not len(tple) > 1:
@@ -128,7 +128,7 @@ class GPUMonitor(object):
             gpu_stat.temperature = int(temp)
 
         fan_str = self._find_val(output, 'Fan Speed')
-        if fan_str:
+        if fan_str and fan_str!='N/A':
             # Fan speed in RPM
             fan_spd = float(fan_str.strip(r'\%').strip()) * 0.01 * MAX_FAN_RPM
             # Convert fan speed to Hz

@@ -136,6 +136,7 @@ class MemMonitor():
                                  stderr=subprocess.PIPE, shell=True)
             stdout, stderr = p.communicate()
             retcode = p.returncode
+            stdout = stdout.decode('utf-8')
 
             if retcode != 0:
                 values.append(
@@ -191,7 +192,7 @@ class MemMonitor():
             values.append(KeyValue(key='Free Memory', value=free_mem+"M"))
 
             msg = mem_dict[level]
-        except Exception, e:
+        except Exception as e:
             rospy.logerr(traceback.format_exc())
             msg = 'Memory Usage Check Error'
             values.append(KeyValue(key=msg, value=str(e)))
@@ -278,7 +279,7 @@ if __name__ == '__main__':
             mem_node.publish_stats()
     except KeyboardInterrupt:
         pass
-    except Exception, e:
+    except Exception as e:
         traceback.print_exc()
         rospy.logerr(traceback.format_exc())
 

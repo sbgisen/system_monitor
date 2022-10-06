@@ -89,6 +89,7 @@ def get_sys_net_stat(iface, sys):
                        stdout = subprocess.PIPE,
                        stderr = subprocess.PIPE, shell = True)
   stdout, stderr = p.communicate()
+  stdout = stdout.decode('utf-8')
   return (p.returncode, stdout.strip())
 
 def get_sys_net(iface, sys):
@@ -97,6 +98,7 @@ def get_sys_net(iface, sys):
                        stdout = subprocess.PIPE,
                        stderr = subprocess.PIPE, shell = True)
   stdout, stderr = p.communicate()
+  stdout = stdout.decode('utf-8')
   return (p.returncode, stdout.strip())
 
 class NetMonitor():
@@ -132,6 +134,7 @@ class NetMonitor():
                            stderr = subprocess.PIPE, shell = True)
       stdout, stderr = p.communicate()
       retcode = p.returncode
+      stdout = stdout.decode('utf-8')
       if retcode == 3:
         values.append(KeyValue(key = "\"ifstat -q -S 1 1\" Call Error",
           value = str(retcode)))
@@ -186,7 +189,7 @@ class NetMonitor():
         (retcode, cmd_out) = get_sys_net_stat(ifaces[i], 'tx_errors')
         if retcode == 0:
           values.append(KeyValue(key = 'Tx Errors', value = cmd_out))
-    except Exception, e:
+    except Exception as e:
       rospy.logerr(traceback.format_exc())
       msg = 'Network Usage Check Error'
       values.append(KeyValue(key = msg, value = str(e)))
@@ -259,7 +262,7 @@ if __name__ == '__main__':
       net_node.publish_stats()
   except KeyboardInterrupt:
     pass
-  except Exception, e:
+  except Exception as e:
     traceback.print_exc()
     rospy.logerr(traceback.format_exc())
   net_node.cancel_timers()

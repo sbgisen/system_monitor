@@ -81,8 +81,9 @@ def ntp_monitor(offset=500, self_offset=500, diag_hostname = None, error_offset 
                 p = Popen(["ntpdate", "-q", host], stdout=PIPE, stdin=PIPE, stderr=PIPE)
                 res = p.wait()
                 (o,e) = p.communicate()
-            except OSError, (errno, msg):
-                if errno == 4:
+                o = o.decode('utf-8')
+            except OSError as e:
+                if e.errno == 4:
                     break #ctrl-c interrupt
                 else:
                     raise
