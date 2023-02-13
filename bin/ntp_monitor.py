@@ -81,12 +81,15 @@ def ntp_monitor(offset=500, self_offset=500, diag_hostname = None, error_offset 
                 p = Popen(["ntpdate", "-q", host], stdout=PIPE, stdin=PIPE, stderr=PIPE)
                 res = p.wait()
                 (o,e) = p.communicate()
-            except OSError, (errno, msg):
-                if errno == 4:
+            except OSError as e:
+                if e.errno == 4:
                     break #ctrl-c interrupt
                 else:
                     raise
             if (res == 0):
+                if sys.version_info.major == 3:
+                    o = o.decode("UTF-8")
+                
                 measured_offset = float(re.search("offset (.*),", o).group(1))*1000000
                 st.level = DiagnosticStatus.OK
                 st.message = "OK"

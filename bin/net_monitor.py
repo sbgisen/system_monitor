@@ -83,20 +83,24 @@ def update_status_stale(stat, last_update_time):
   stat.values.insert(1, KeyValue(key = 'Time Since Update',
     value = str(time_since_update)))
 
-def get_sys_net_stat(iface, sys):
-  cmd = 'cat /sys/class/net/%s/statistics/%s' %(iface, sys)
+def get_sys_net_stat(iface, syst):
+  cmd = 'cat /sys/class/net/%s/statistics/%s' %(iface, syst)
   p = subprocess.Popen(cmd,
                        stdout = subprocess.PIPE,
                        stderr = subprocess.PIPE, shell = True)
   stdout, stderr = p.communicate()
+  if sys.version_info.major == 3:
+    stdout = stdout.decode("UTF-8")
   return (p.returncode, stdout.strip())
 
-def get_sys_net(iface, sys):
-  cmd = 'cat /sys/class/net/%s/%s' %(iface, sys)
+def get_sys_net(iface, syst):
+  cmd = 'cat /sys/class/net/%s/%s' %(iface, syst)
   p = subprocess.Popen(cmd,
                        stdout = subprocess.PIPE,
                        stderr = subprocess.PIPE, shell = True)
   stdout, stderr = p.communicate()
+  if sys.version_info.major == 3:
+    stdout = stdout.decode("UTF-8")
   return (p.returncode, stdout.strip())
 
 class NetMonitor():
@@ -136,6 +140,9 @@ class NetMonitor():
         values.append(KeyValue(key = "\"ifstat -q -S 1 1\" Call Error",
           value = str(retcode)))
         return DiagnosticStatus.ERROR, net_dict[3], values
+      
+      if sys.version_info.major == 3:
+        stdout = stdout.decode("UTF-8")
       rows = stdout.split('\n')
       data = rows[0].split()
       ifaces = []
@@ -186,7 +193,7 @@ class NetMonitor():
         (retcode, cmd_out) = get_sys_net_stat(ifaces[i], 'tx_errors')
         if retcode == 0:
           values.append(KeyValue(key = 'Tx Errors', value = cmd_out))
-    except Exception, e:
+    except Exception as e:
       rospy.logerr(traceback.format_exc())
       msg = 'Network Usage Check Error'
       values.append(KeyValue(key = msg, value = str(e)))
@@ -259,7 +266,7 @@ if __name__ == '__main__':
       net_node.publish_stats()
   except KeyboardInterrupt:
     pass
-  except Exception, e:
+  except Exception as e:
     traceback.print_exc()
     rospy.logerr(traceback.format_exc())
   net_node.cancel_timers()

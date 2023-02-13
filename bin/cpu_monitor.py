@@ -155,7 +155,7 @@ class CPUMonitor():
                     self._temps_timer.cancel()
 
             self.check_temps()
-        except Exception, e:
+        except Exception as e:
             rospy.logerr('Unable to restart temp thread. Error: %s' % traceback.format_exc())
 
 
@@ -194,7 +194,12 @@ class CPUMonitor():
                 return diag_vals, diag_msgs, diag_level
 
             tmp = stdout.strip()
-            if unicode(tmp).isnumeric():
+            if not isinstance(tmp, str):
+                tmp_u = tmp.decode("UTF-8")
+            else:
+                tmp_u = unicode(tmp)
+
+            if tmp_u.isnumeric():
                 temp = float(tmp) / 1000
                 diag_vals.append(KeyValue(key = 'Core %d Temperature' % index, value = str(temp)+"DegC"))
 
@@ -231,6 +236,9 @@ class CPUMonitor():
 
                 return (vals, msgs, lvl)
 
+            if sys.version_info.major == 3:
+                stdout = stdout.decode('UTF-8')
+
             for index, ln in enumerate(stdout.split('\n')):
                 words = ln.split(':')
                 if len(words) < 2:
@@ -239,7 +247,7 @@ class CPUMonitor():
                 speed = words[1].strip().split('.')[0] # Conversion to float doesn't work with decimal
                 vals.append(KeyValue(key = 'Core %d Clock Speed' % index, value = speed+"MHz"))
 
-        except Exception, e:
+        except Exception as e:
             rospy.logerr(traceback.format_exc())
             lvl = DiagnosticStatus.ERROR
             msgs.append('Exception')
@@ -265,7 +273,10 @@ class CPUMonitor():
             if retcode != 0:
                 vals.append(KeyValue(key = 'uptime Failed', value = stderr))
                 return DiagnosticStatus.ERROR, vals
-
+            
+            if sys.version_info.major == 3:
+                stdout = stdout.decode('UTF-8')
+            
             upvals = stdout.split()
             load1 = float(upvals[-3].rstrip(',').replace(',','.'))/self._num_cores
             load5 = float(upvals[-2].rstrip(',').replace(',','.'))/self._num_cores
@@ -280,7 +291,7 @@ class CPUMonitor():
             vals.append(KeyValue(key = 'Load Average (5min)', value = str(load5*1e2)+"%"))
             vals.append(KeyValue(key = 'Load Average (15min)', value = str(load15*1e2)+"%"))
 
-        except Exception, e:
+        except Exception as e:
             rospy.logerr(traceback.format_exc())
             level = DiagnosticStatus.ERROR
             vals.append(KeyValue(key = 'Load Average Status', value = traceback.format_exc()))
@@ -376,7 +387,7 @@ class CPUMonitor():
                 self._num_cores = num_cores
                 return DiagnosticStatus.WARN, 'Incorrect number of CPU cores', vals
 
-        except Exception, e:
+        except Exception as e:
             mp_level = DiagnosticStatus.ERROR
             vals.append(KeyValue(key = 'mpstat Exception', value = str(e)))
 
@@ -392,6 +403,9 @@ class CPUMonitor():
                                 stderr = subprocess.PIPE, shell = True)
             stdout, stderr = p.communicate()
             retcode = p.returncode
+
+            if sys.version_info.major == 3:
+                stdout = stdout.decode('UTF-8')
 
             if retcode != 0:
                 rospy.logerr('Error find core temp locations: %s' % stderr)
@@ -540,7 +554,7 @@ if __name__ == '__main__':
             cpu_node.publish_stats()
     except KeyboardInterrupt:
         pass
-    except Exception, e:
+    except Exception as e:
         traceback.print_exc()
         rospy.logerr(traceback.format_exc())
 
