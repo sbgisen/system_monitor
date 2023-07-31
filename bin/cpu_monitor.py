@@ -64,7 +64,12 @@ cpu_temp_error = 90.0
 num_cores = subprocess.Popen('lscpu | grep "^CPU(s):"',
                                 stdout= subprocess.PIPE,
                                 stderr= subprocess.PIPE, shell=True )
-num_cores = int(num_cores.communicate()[0][-2])
+try:
+    num_cores = num_cores.communicate()[0].decode()
+    num_cores = num_cores[-3]+num_cores[-2]
+    num_cores = int(num_cores)
+except:
+    num_cores = int(num_cores.communicate()[0][-2])
 
 stat_dict = { 0: 'OK', 1: 'Warning', 2: 'Error' }
 
@@ -310,6 +315,10 @@ class CPUMonitor():
                                 stdout = subprocess.PIPE,
                                 stderr = subprocess.PIPE, shell = True)
             stdout, stderr = p.communicate()
+            try:
+                stdout = stdout.decode()
+            except:
+                stdout = stdout
             retcode = p.returncode
             if retcode != 0:
                 if not self._has_warned_mpstat:
