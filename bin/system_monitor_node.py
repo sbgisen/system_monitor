@@ -103,21 +103,32 @@ class Monitor():
         aux_usa.load_avg5 = float(status.values[len_values - 2].value[:-1])
         aux_usa.load_avg15 = float(status.values[len_values - 1].value[:-1])
         for i in range(0, num_cores):
-            core = CoreUsage()
-            core.id = i
-            core.speed = float(status.values[i +2].value[:-3])
-            core.status = status.values[2 + num_cores + 5*i].value
-            if sys.version_info.major == 3:
-                core.system = float(status.values[3 + num_cores + 5*i].value[:-3])
-                core.user = float(status.values[4 + num_cores + 5*i].value[:-3])
-                core.nice = float(status.values[5 + num_cores + 5*i].value[:-3])
-                core.idle = float(status.values[6 + num_cores + 5*i].value[:-3].replace(",","."))
-            else:
-                core.system = float(status.values[3 + num_cores + 5*i].value[:-1])
-                core.user = float(status.values[4 + num_cores + 5*i].value[:-1])
-                core.nice = float(status.values[5 + num_cores + 5*i].value[:-1])
-                core.idle = float(status.values[6 + num_cores + 5*i].value[:-1].replace(",","."))
-            aux_usa.cores.append(core)
+            try:
+                core = CoreUsage()
+                core.id = i
+                core.speed = float(status.values[i +2].value[:-3])
+                core.status = status.values[2 + num_cores + 5*i].value
+                if sys.version_info.major == 3:
+                    core.system = float(status.values[3 + num_cores + 5*i].value[:-1])
+                    core.user = float(status.values[4 + num_cores + 5*i].value[:-3])
+                    core.nice = float(status.values[5 + num_cores + 5*i].value[:-3])
+                    core.idle = float(status.values[6 + num_cores + 5*i].value[:-3].replace(",","."))
+                else:
+                    core.system = float(status.values[3 + num_cores + 5*i].value[:-1])
+                    core.user = float(status.values[4 + num_cores + 5*i].value[:-1])
+                    core.nice = float(status.values[5 + num_cores + 5*i].value[:-1])
+                    core.idle = float(status.values[6 + num_cores + 5*i].value[:-1].replace(",","."))
+                aux_usa.cores.append(core)
+            except Exception as ex:
+                    core = CoreUsage()
+                    core.id = i
+                    core.speed = 0
+                    core.status = "Unknown"
+                    core.system = 0
+                    core.user = 0
+                    core.nice = 0
+                    core.idle = 0
+                    aux_usa.cores.append(core)
         self._diag_cpu_usa.status = aux_usa
         #self.publish_info()
 
