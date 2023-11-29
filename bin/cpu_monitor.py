@@ -194,8 +194,8 @@ class CPUMonitor():
             if retcode != 0:
                 diag_level = DiagnosticStatus.ERROR
                 diag_msg = [ 'Core Temperature Error' ]
-                diag_vals = [ KeyValue(key = 'Core Temperature Error', value = stderr),
-                              KeyValue(key = 'Output', value = stdout) ]
+                diag_vals = [ KeyValue(key = 'Core Temperature Error', value = str(stderr)),
+                              KeyValue(key = 'Output', value = str(stdout)) ]
                 return diag_vals, diag_msgs, diag_level
 
             tmp = stdout.strip()
