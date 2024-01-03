@@ -148,7 +148,7 @@ class Monitor():
             disk.id = i + 1
             disk.name = status.values[3 + i * 6].value
             disk.size = float(status.values[4 + i * 6].value[:-1])
-            disk.available = float(status.values[5 + i * 6].value[:-1])
+            disk.available = float(status.values[5 + i * 6].value[:-1].replace(",", "."))
             disk.use = float(status.values[6 + i * 6].value[:-1])
             disk.status = status.values[7 + i * 6].value
             disk.mount_point = status.values[8 + i * 6].value
