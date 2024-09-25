@@ -192,11 +192,7 @@ class CPUMonitor():
             retcode = p.returncode
 
             if retcode != 0:
-                diag_level = DiagnosticStatus.ERROR
-                diag_msg = [ 'Core Temperature Error' ]
-                diag_vals = [ KeyValue(key = 'Core Temperature Error', value = str(stderr)),
-                              KeyValue(key = 'Output', value = str(stdout)) ]
-                return diag_vals, diag_msgs, diag_level
+                continue
 
             tmp = stdout.strip()
             if not isinstance(tmp, str):
@@ -217,6 +213,11 @@ class CPUMonitor():
             else:
                 diag_level = max(diag_level, DiagnosticStatus.ERROR) # Error if not numeric value
                 diag_vals.append(KeyValue(key = 'Core %s Temperature' % index, value = tmp))
+
+        if not diag_vals:
+            diag_level = DiagnosticStatus.ERROR
+            diag_msgs = [ 'Core Temperature Error' ]
+            diag_vals = [ KeyValue(key = 'Core Temperature Error', value = 'Cannot Read Core Temperature') ]
 
         return diag_vals, diag_msgs, diag_level
 
