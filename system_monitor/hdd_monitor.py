@@ -94,14 +94,16 @@ class hdd_monitor(Node):
         self._last_temp_time = self.get_clock().now()
         self._temp_timer = None
         if not self._no_temp:
-            self._temp_stat = DiagnosticStatus()
-            self._temp_stat.name = "HDD Temperature (%s)" % diag_hostname
-            self._temp_stat.level = DiagnosticStatus.ERROR
-            self._temp_stat.hardware_id = hostname
-            self._temp_stat.message = 'No Data'
-            self._temp_stat.values = [ KeyValue(key = 'Update Status', value = 'No Data'),
-                                      KeyValue(key = 'Time Since Last Update', value = 'N/A') ]
-            self.check_temps()
+            pass
+            # TODO: Implement this
+            # self._temp_stat = DiagnosticStatus()
+            # self._temp_stat.name = "HDD Temperature (%s)" % diag_hostname
+            # self._temp_stat.level = DiagnosticStatus.ERROR
+            # self._temp_stat.hardware_id = hostname
+            # self._temp_stat.message = 'No Data'
+            # self._temp_stat.values = [ KeyValue(key = 'Update Status', value = 'No Data'),
+            #                           KeyValue(key = 'Time Since Last Update', value = 'N/A') ]
+            # self.check_temps()
 
         self._last_usage_time = self.get_clock().now()
         self._usage_timer = None
