@@ -40,8 +40,11 @@
 
 from __future__ import with_statement
 
-import rospy
-
+import rclpy
+import rclpy.utilities
+from rclpy.node import Node
+from rclpy.duration import Duration
+from rclpy.executors import ExternalShutdownException
 import traceback
 import threading
 from threading import Timer
@@ -64,102 +67,45 @@ usage_dict = { 0: 'OK', 1: 'Low Disk Space', 2: 'Very Low Disk Space' }
 
 REMOVABLE = ['/dev/sg1', '/dev/sdb'] # Store removable drives so we can ignore if removed
 
-## Connects to hddtemp daemon to get temp, HDD make.
-def get_hddtemp_data(hostname = 'localhost', port = 7634):
-    try:
-        hdd_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        hdd_sock.connect((hostname, port))
-        sock_data = ''
-        while True:
-            newdat = hdd_sock.recv(1024)
-            if len(newdat) == 0:
-                break
-            sock_data = sock_data + newdat
-        hdd_sock.close()
 
-        sock_vals = sock_data.split('|')
-
-        # Format of output looks like ' | DRIVE | MAKE | TEMP | ' 
-        idx = 0
-
-        drives = []
-        makes = []
-        temps = []
-        while idx + 5 < len(sock_vals):
-            this_drive = sock_vals[idx + 1]
-            this_make = sock_vals[idx + 2]
-            this_temp = sock_vals[idx + 3]
-
-            # Sometimes we get duplicate makes if hard drives are mounted
-            # to two different points
-            if this_make in makes:
-                idx += 5
-                continue
-
-            drives.append(this_drive)
-            makes.append(this_make)
-            temps.append(this_temp)
-                        
-            idx += 5
-
-        return True, drives, makes, temps
-    except:
-        rospy.loginfo(traceback.format_exc())
-        return False, [ 'Exception' ], [ traceback.format_exc() ], [ 0 ]
-
-def update_status_stale(stat, last_update_time):
-    time_since_update = rospy.get_time() - last_update_time
-
-    stale_status = 'OK'
-    if time_since_update > 20 and time_since_update <= 35:
-        stale_status = 'Lagging'
-        if stat.level == DiagnosticStatus.OK:
-            stat.message = stale_status
-        elif stat.message.find(stale_status) < 0:
-            stat.message = ', '.join([stat.message, stale_status])
-        stat.level = max(stat.level, DiagnosticStatus.WARN)
-    if time_since_update > 35:
-        stale_status = 'Stale'
-        if stat.level == DiagnosticStatus.OK:
-            stat.message = stale_status
-        elif stat.message.find(stale_status) < 0:
-            stat.message = ', '.join([stat.message, stale_status])
-        stat.level = max(stat.level, DiagnosticStatus.ERROR)
-
-    stat.values.pop(0)
-    stat.values.pop(0)
-    stat.values.insert(0, KeyValue(key = 'Update Status', value = stale_status))
-    stat.values.insert(1, KeyValue(key = 'Time Since Update', value = str(time_since_update)))
-
-class hdd_monitor():
+class hdd_monitor(Node):
     def __init__(self, hostname, diag_hostname):
+        super().__init__('hdd_monitor_%s' % hostname)
         self._mutex = threading.Lock()
 
         self._hostname = hostname
-        self._no_temp = rospy.get_param('~no_hdd_temp', False)
-        self._no_temp_warn = rospy.get_param('~no_hdd_temp_warn', False)
-        self._hdd_level_warn = rospy.get_param('~hdd_level_warn', hdd_level_warn)
-        self._hdd_level_error = rospy.get_param('~hdd_level_error', hdd_level_error)
-        self._hdd_temp_warn = rospy.get_param('~hdd_temp_warn', hdd_temp_warn)
-        self._hdd_temp_error = rospy.get_param('~hdd_temp_error', hdd_temp_error)
+        self.declare_parameter('no_hdd_temp', False)
+        self.declare_parameter('no_hdd_temp_warn', False)
+        self.declare_parameter('hdd_level_warn', hdd_level_warn)
+        self.declare_parameter('hdd_level_error', hdd_level_error)
+        self.declare_parameter('hdd_temp_warn', hdd_temp_warn)
+        self.declare_parameter('hdd_temp_error', hdd_temp_error)
+        self._no_temp = self.get_parameter('no_hdd_temp').get_parameter_value().bool_value
+        self._no_temp_warn = self.get_parameter('no_hdd_temp_warn').get_parameter_value().bool_value
+        self._hdd_level_warn = self.get_parameter('hdd_level_warn').get_parameter_value().double_value
+        self._hdd_level_error = self.get_parameter('hdd_level_error').get_parameter_value().double_value
+        self._hdd_temp_warn = self.get_parameter('hdd_temp_warn').get_parameter_value().double_value
+        self._hdd_temp_error = self.get_parameter('hdd_temp_error').get_parameter_value().double_value
 
-        self._diag_pub = rospy.Publisher('/diagnostics', DiagnosticArray, queue_size = 100)
+        self._diag_pub = self.create_publisher(DiagnosticArray, '/diagnostics', 100)
 
-        self._last_publish_time = 0
+        self._last_publish_time = self.get_clock().now()
 
-        self._last_temp_time = 0
+        self._last_temp_time = self.get_clock().now()
         self._temp_timer = None
         if not self._no_temp:
-          self._temp_stat = DiagnosticStatus()
-          self._temp_stat.name = "HDD Temperature (%s)" % diag_hostname
-          self._temp_stat.level = DiagnosticStatus.ERROR
-          self._temp_stat.hardware_id = hostname
-          self._temp_stat.message = 'No Data'
-          self._temp_stat.values = [ KeyValue(key = 'Update Status', value = 'No Data'),
-                                    KeyValue(key = 'Time Since Last Update', value = 'N/A') ]
-          self.check_temps()
+            pass
+            # TODO: Implement this
+            # self._temp_stat = DiagnosticStatus()
+            # self._temp_stat.name = "HDD Temperature (%s)" % diag_hostname
+            # self._temp_stat.level = DiagnosticStatus.ERROR
+            # self._temp_stat.hardware_id = hostname
+            # self._temp_stat.message = 'No Data'
+            # self._temp_stat.values = [ KeyValue(key = 'Update Status', value = 'No Data'),
+            #                           KeyValue(key = 'Time Since Last Update', value = 'N/A') ]
+            # self.check_temps()
 
-        self._last_usage_time = 0
+        self._last_usage_time = self.get_clock().now()
         self._usage_timer = None
         self._usage_stat = DiagnosticStatus()
         self._usage_stat.level = DiagnosticStatus.ERROR
@@ -168,6 +114,76 @@ class hdd_monitor():
         self._usage_stat.values = [ KeyValue(key = 'Update Status', value = 'No Data' ),
                                     KeyValue(key = 'Time Since Last Update', value = 'N/A') ]
         self.check_disk_usage()
+
+        self.create_timer(1.0, self.publish_stats)
+
+    ## Connects to hddtemp daemon to get temp, HDD make.
+    def get_hddtemp_data(self, hostname='localhost', port=7634):
+        try:
+            hdd_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            hdd_sock.connect((hostname, port))
+            sock_data = ''
+            while True:
+                newdat = hdd_sock.recv(1024)
+                if len(newdat) == 0:
+                    break
+                sock_data = sock_data + newdat
+            hdd_sock.close()
+
+            sock_vals = sock_data.split('|')
+
+            # Format of output looks like ' | DRIVE | MAKE | TEMP | '
+            idx = 0
+
+            drives = []
+            makes = []
+            temps = []
+            while idx + 5 < len(sock_vals):
+                this_drive = sock_vals[idx + 1]
+                this_make = sock_vals[idx + 2]
+                this_temp = sock_vals[idx + 3]
+
+                # Sometimes we get duplicate makes if hard drives are mounted
+                # to two different points
+                if this_make in makes:
+                    idx += 5
+                    continue
+
+                drives.append(this_drive)
+                makes.append(this_make)
+                temps.append(this_temp)
+
+                idx += 5
+
+            return True, drives, makes, temps
+        except:
+            self.get_logger().error(traceback.format_exc())
+            return False, ['Exception'], [traceback.format_exc()], [0]
+
+
+    def update_status_stale(self, stat, last_update_time):
+        time_since_update = self.get_clock().now() - last_update_time
+
+        stale_status = 'OK'
+        if time_since_update > Duration(seconds=20) and time_since_update <= Duration(seconds=35):
+            stale_status = 'Lagging'
+            if stat.level == DiagnosticStatus.OK:
+                stat.message = stale_status
+            elif stat.message.find(stale_status) < 0:
+                stat.message = ', '.join([stat.message, stale_status])
+            stat.level = max(stat.level, DiagnosticStatus.WARN)
+        if time_since_update > Duration(seconds=35):
+            stale_status = 'Stale'
+            if stat.level == DiagnosticStatus.OK:
+                stat.message = stale_status
+            elif stat.message.find(stale_status) < 0:
+                stat.message = ', '.join([stat.message, stale_status])
+            stat.level = max(stat.level, DiagnosticStatus.ERROR)
+
+        stat.values.pop(0)
+        stat.values.pop(0)
+        stat.values.insert(0, KeyValue(key='Update Status', value=stale_status))
+        stat.values.insert(1, KeyValue(key='Time Since Update', value=str(time_since_update)))
 
     ## Must have the lock to cancel everything
     def cancel_timers(self):
@@ -180,7 +196,7 @@ class hdd_monitor():
             self._usage_timer = None
 
     def check_temps(self):
-        if rospy.is_shutdown():
+        if not rclpy.ok():
             with self._mutex:
                 self.cancel_timers()
             return
@@ -190,11 +206,12 @@ class hdd_monitor():
         diag_level = DiagnosticStatus.OK
         diag_message = 'OK'
 
-        temp_ok, drives, makes, temps = get_hddtemp_data()
+        temp_ok, drives, makes, temps = self.get_hddtemp_data()
 
         for index in range(0, len(drives)):
             temp = temps[index]
 
+            self.get_logger().info(f'Got temp: {temp}')
             if not isinstance(temp, str):
                 tmp_u = temp.decode("UTF-8")
             else:
@@ -214,8 +231,8 @@ class hdd_monitor():
                     temp_level = DiagnosticStatus.ERROR
 
             diag_level = max(diag_level, temp_level)
-            
-            diag_strs.append(KeyValue(key = 'Disk %d Temperature Status' % index, value = temp_dict[temp_level]))
+
+            diag_strs.append(KeyValue(key = 'Disk %d Temperature Status' % index, value = temp_dict[int.from_bytes(temp_level)]))
             diag_strs.append(KeyValue(key = 'Disk %d Mount Pt.' % index, value = drives[index]))
             diag_strs.append(KeyValue(key = 'Disk %d Device ID' % index, value = makes[index]))
             diag_strs.append(KeyValue(key = 'Disk %d Temperature' % index, value = str(temp)+"DegC"))
@@ -224,26 +241,26 @@ class hdd_monitor():
             diag_level = DiagnosticStatus.ERROR
 
         with self._mutex:
-            self._last_temp_time = rospy.get_time()
+            self._last_temp_time = self.get_clock().now()
             self._temp_stat.values = diag_strs
             self._temp_stat.level = diag_level
 
             # Give No Data message if we have no reading
-            self._temp_stat.message = temp_dict[diag_level]
+            self._temp_stat.message = temp_dict[int.from_bytes(diag_level)]
             if not temp_ok:
                 self._temp_stat.message = 'Error'
 
             if self._no_temp_warn and temp_ok:
                 self._temp_stat.level = DiagnosticStatus.OK
 
-            if not rospy.is_shutdown():
+            if rclpy.ok():
                 self._temp_timer = threading.Timer(10.0, self.check_temps)
                 self._temp_timer.start()
             else:
                 self.cancel_timers()
 
     def check_disk_usage(self):
-        if rospy.is_shutdown():
+        if not rclpy.ok():
             with self._mutex:
                 self.cancel_timers()
             return
@@ -265,14 +282,14 @@ class hdd_monitor():
                 rows = stdout.split('\n')
                 del rows[0]
                 row_count = 0
-                
+
                 for row in rows:
                     if len(row.split()) < 2:
                         continue
 
                     if not isinstance(row.split()[0], str):
                         row.split()[0] = row.split()[0].decode("UTF-8")
-                    
+
                     if row.split()[0] == "none":
                         continue
 
@@ -300,36 +317,36 @@ class hdd_monitor():
                     diag_vals.append(KeyValue(
                             key = 'Disk %d Use' % row_count, value = g_use))
                     diag_vals.append(KeyValue(
-                            key = 'Disk %d Status' % row_count, value = stat_dict[level]))
+                            key = 'Disk %d Status' % row_count, value = stat_dict[int.from_bytes(level)]))
                     diag_vals.append(KeyValue(
                             key = 'Disk %d Mount Point' % row_count, value = mount_pt))
 
                     diag_level = max(diag_level, level)
-                    diag_message = usage_dict[diag_level]
+                    diag_message = usage_dict[int.from_bytes(diag_level)]
 
             else:
                 diag_vals.append(KeyValue(key = 'Disk Space Reading', value = 'Failed'))
                 diag_level = DiagnosticStatus.ERROR
-                diag_message = stat_dict[diag_level]
+                diag_message = stat_dict[int.from_bytes(diag_level)]
 
 
         except:
-            rospy.logerr(traceback.format_exc())
+            self.get_logger().error(traceback.format_exc())
 
             diag_vals.append(KeyValue(key = 'Disk Space Reading', value = 'Exception'))
             diag_vals.append(KeyValue(key = 'Disk Space Ex', value = traceback.format_exc()))
 
             diag_level = DiagnosticStatus.ERROR
-            diag_message = stat_dict[diag_level]
+            diag_message = stat_dict[int.from_bytes(diag_level)]
 
         # Update status
         with self._mutex:
-            self._last_usage_time = rospy.get_time()
+            self._last_usage_time = self.get_clock().now()
             self._usage_stat.values = diag_vals
             self._usage_stat.message = diag_message
             self._usage_stat.level = diag_level
-            
-            if not rospy.is_shutdown():
+
+            if rclpy.ok():
                 self._usage_timer = threading.Timer(5.0, self.check_disk_usage)
                 self._usage_timer.start()
             else:
@@ -339,53 +356,49 @@ class hdd_monitor():
     def publish_stats(self):
         with self._mutex:
             msg = DiagnosticArray()
-            msg.header.stamp = rospy.get_rostime()
-            
+            msg.header.stamp = self.get_clock().now().to_msg()
+
             if not self._no_temp:
-              update_status_stale(self._temp_stat, self._last_temp_time)
-              msg.status.append(self._temp_stat)
-              
-            update_status_stale(self._usage_stat, self._last_usage_time)
+                self.update_status_stale(self._temp_stat, self._last_temp_time)
+                msg.status.append(self._temp_stat)
+
+            self.update_status_stale(self._usage_stat, self._last_usage_time)
             msg.status.append(self._usage_stat)
 
-            if rospy.get_time() - self._last_publish_time > 0.5:
+            if self.get_clock().now() - self._last_publish_time > Duration(seconds=0.5):
                 self._diag_pub.publish(msg)
-                self._last_publish_time = rospy.get_time()
+                self._last_publish_time = self.get_clock().now()
 
 
 
-
-##\todo Need to check HDD input/output too using iostat
-
-if __name__ == '__main__':
+def main() -> None:
+    """Main function."""
     hostname = socket.gethostname()
     hostname = hostname.replace('-', '_')
 
     import optparse
-    parser = optparse.OptionParser(usage="usage: hdd_monitor.py [--diag-hostname=cX]")
-    parser.add_option("--diag-hostname", dest="diag_hostname",
+    parser = optparse.OptionParser(usage="usage: cpu_monitor.py [--diag-hostname=cX]")
+    parser.add_option("--diag-hostname",
+                      dest="diag_hostname",
                       help="Computer name in diagnostics output (ex: 'c1')",
                       metavar="DIAG_HOSTNAME",
-                      action="store", default = hostname)
-    options, args = parser.parse_args(rospy.myargv())
-
+                      action="store",
+                      default=hostname)
+    argv = rclpy.utilities.remove_ros_args()
+    options, args = parser.parse_args(argv)
+    rclpy.init()
     try:
-        rospy.init_node('hdd_monitor_%s' % hostname)
-    except rospy.exceptions.ROSInitException:
-        print('HDD monitor is unable to initialize node. Master may not be running.')
-        sys.exit(0)
-        
-    hdd_monitor = hdd_monitor(hostname, options.diag_hostname)
-    rate = rospy.Rate(1.0)
-
-    try:
-        while not rospy.is_shutdown():
-            rate.sleep()
-            hdd_monitor.publish_stats()
+        node = hdd_monitor(hostname, options.diag_hostname)
+        rclpy.spin(node)
     except KeyboardInterrupt:
         pass
-    except Exception as e:
-        traceback.print_exc()
+    except ExternalShutdownException:
+        sys.exit(1)
+    finally:
+        rclpy.try_shutdown()
+        node.cancel_timers()
+        node.destroy_node()
 
-    hdd_monitor.cancel_timers()
-    sys.exit(0)
+
+if __name__ == '__main__':
+    main()
