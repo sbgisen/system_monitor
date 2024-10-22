@@ -359,8 +359,9 @@ class hdd_monitor(Node):
             msg.header.stamp = self.get_clock().now().to_msg()
 
             if not self._no_temp:
-                self.update_status_stale(self._temp_stat, self._last_temp_time)
-                msg.status.append(self._temp_stat)
+                pass
+                # self.update_status_stale(self._temp_stat, self._last_temp_time)
+                # msg.status.append(self._temp_stat)
 
             self.update_status_stale(self._usage_stat, self._last_usage_time)
             msg.status.append(self._usage_stat)
