@@ -9,7 +9,6 @@
   <url>http://github.com/ethz-asl/ros-system-monitor</url>
   <author>Ralf Kaestner</author>
   <author>Jerome Maye</author>
-  <!-- <buildtool_depend>ament_python</buildtool_depend> -->
   <exec_depend>rclpy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>diagnostic_msgs</exec_depend>
