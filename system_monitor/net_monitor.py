@@ -63,25 +63,6 @@ net_capacity = 128.0
 
 stat_dict = {0: 'OK', 1: 'Warning', 2: 'Error'}
 
-def get_sys_net_stat(iface, syst):
-    cmd = 'cat /sys/class/net/%s/statistics/%s' %(iface, syst)
-    p = subprocess.Popen(cmd,
-                         stdout = subprocess.PIPE,
-                         stderr = subprocess.PIPE, shell = True)
-    stdout, stderr = p.communicate()
-    if sys.version_info.major == 3:
-        stdout = stdout.decode("UTF-8")
-    return (p.returncode, stdout.strip())
-
-def get_sys_net(iface, syst):
-    cmd = 'cat /sys/class/net/%s/%s' %(iface, syst)
-    p = subprocess.Popen(cmd,
-                         stdout = subprocess.PIPE,
-                         stderr = subprocess.PIPE, shell = True)
-    stdout, stderr = p.communicate()
-    if sys.version_info.major == 3:
-        stdout = stdout.decode("UTF-8")
-    return (p.returncode, stdout.strip())
 
 class NetMonitor(Node):
     def __init__(self, hostname, diag_hostname):
@@ -164,7 +145,7 @@ class NetMonitor(Node):
             for i in range(0, len(ifaces)):
                 values.append(KeyValue(key = 'Interface Name',
                   value = ifaces[i]))
-                (retcode, cmd_out) = get_sys_net(ifaces[i], 'operstate')
+                (retcode, cmd_out) = self.get_sys_net(ifaces[i], 'operstate')
                 if retcode == 0:
                     values.append(KeyValue(key = 'State', value = cmd_out))
                     ifacematch = re.match('eth[0-9]+', ifaces[i])
@@ -179,24 +160,24 @@ class NetMonitor(Node):
                 if net_usage_in > self._net_level_warn or\
                   net_usage_out > self._net_level_warn:
                     level = DiagnosticStatus.WARN
-                (retcode, cmd_out) = get_sys_net(ifaces[i], 'mtu')
+                (retcode, cmd_out) = self.get_sys_net(ifaces[i], 'mtu')
                 if retcode == 0:
                     values.append(KeyValue(key = 'MTU', value = cmd_out))
-                (retcode, cmd_out) = get_sys_net_stat(ifaces[i], 'rx_bytes')
+                (retcode, cmd_out) = self.get_sys_net_stat(ifaces[i], 'rx_bytes')
                 if retcode == 0:
                     values.append(KeyValue(key = 'Total received MB',
                       value = str(float(cmd_out) / 1024 / 1024)))
-                (retcode, cmd_out) = get_sys_net_stat(ifaces[i], 'tx_bytes')
+                (retcode, cmd_out) = self.get_sys_net_stat(ifaces[i], 'tx_bytes')
                 if retcode == 0:
                     values.append(KeyValue(key = 'Total transmitted MB',
                       value = str(float(cmd_out) / 1024 / 1024)))
-                (retcode, cmd_out) = get_sys_net_stat(ifaces[i], 'collisions')
+                (retcode, cmd_out) = self.get_sys_net_stat(ifaces[i], 'collisions')
                 if retcode == 0:
                     values.append(KeyValue(key = 'Collisions', value = cmd_out))
-                (retcode, cmd_out) = get_sys_net_stat(ifaces[i], 'rx_errors')
+                (retcode, cmd_out) = self.get_sys_net_stat(ifaces[i], 'rx_errors')
                 if retcode == 0:
                     values.append(KeyValue(key = 'Rx Errors', value = cmd_out))
-                (retcode, cmd_out) = get_sys_net_stat(ifaces[i], 'tx_errors')
+                (retcode, cmd_out) = self.get_sys_net_stat(ifaces[i], 'tx_errors')
                 if retcode == 0:
                     values.append(KeyValue(key = 'Tx Errors', value = cmd_out))
         except Exception as e:
@@ -245,6 +226,21 @@ class NetMonitor(Node):
                 self._diag_pub.publish(msg)
                 self._last_publish_time = self.get_clock().now()
 
+    def get_sys_net_stat(self, iface, syst):
+        cmd = 'cat /sys/class/net/%s/statistics/%s' % (iface, syst)
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        stdout, stderr = p.communicate()
+        if sys.version_info.major == 3:
+            stdout = stdout.decode("UTF-8")
+        return (p.returncode, stdout.strip())
+
+    def get_sys_net(self, iface, syst):
+        cmd = 'cat /sys/class/net/%s/%s' % (iface, syst)
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        stdout, stderr = p.communicate()
+        if sys.version_info.major == 3:
+            stdout = stdout.decode("UTF-8")
+        return (p.returncode, stdout.strip())
 
 def main() -> None:
     """Main function."""
