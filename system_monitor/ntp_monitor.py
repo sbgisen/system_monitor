@@ -112,11 +112,11 @@ class NTPMonitor(Node):
                 st.level = DiagnosticStatus.ERROR
                 st.message = "Error Running ntpdate. Returned %d" % res
                 st.values = [
-                    KeyValue("Offset (us)", "N/A"),
-                    KeyValue("Offset tolerance (us)", str(off)),
-                    KeyValue("Offset tolerance (us) for Error", str(self.error_offset)),
-                    KeyValue("Output", o),
-                    KeyValue("Errors", e)
+                    KeyValue(key="Offset (us)", value="N/A"),
+                    KeyValue(key="Offset tolerance (us)", value=str(off)),
+                    KeyValue(key="Offset tolerance (us) for Error", value=str(self.error_offset)),
+                    KeyValue(key="Output", value=o),
+                    KeyValue(key="Errors", value=e)
                 ]
 
         msg = DiagnosticArray()
